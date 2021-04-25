@@ -1,0 +1,8 @@
+# Untracked file
+DevNotebook.ipynb
+__pycache__/
+.*
+!.gitignore
+example_bot.py
+dev*
+teabank-9ce129712f0c.json
