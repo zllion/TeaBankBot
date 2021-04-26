@@ -20,7 +20,6 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 
 extensions = (
     "cogs.bankcmd",
-    "cogs.test",
     )
 
 

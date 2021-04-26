@@ -207,13 +207,3 @@ class Bank():
         self.pendbook.update_cell(i,7,'denied')
         self.transbook.update_cell(j,9,'denied')
         self.pendstart = i+1
-
-
-
-'''
-class BankBot(commands.Bot):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.bank = Bank('TestBank')
-        return
-'''
