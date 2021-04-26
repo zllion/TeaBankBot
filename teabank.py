@@ -109,7 +109,7 @@ class Bank():
         # eligibility check
         if n < 0:
             self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo="Err: Please don't, use $request")
-            raise ValueError("Please don't, use $request")
+            raise ValueError("Please don't send negative isk, you cannot get money from other's account.")
         balance = int(self.accbook.cell(i,3).value)
         pending = int(self.accbook.cell(i,4).value)
         # check validity
