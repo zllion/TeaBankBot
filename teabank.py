@@ -73,6 +73,9 @@ class Bank():
         if n < 0:
             self._transaction('deposit',n,'','',receiver,accno,'denied',memo='Err: Cannot Deposit negative isk')
             raise ValueError("Cannot Deposit negative isk")
+        if n > 1000000000000:
+            self._transaction('deposit',n,'','',receiver,accno,'denied',memo='Err: Too large')
+            raise ValueError("That's too large! Are you serious?")
         pending = int(self.accbook.cell(i,4).value)
         self.accbook.update_cell(i,4,pending+n)
         # write record
@@ -86,6 +89,9 @@ class Bank():
         if n < 0:
             self._transaction('withdraw',n,'','',receiver,accno,'denied',memo="Err: Cannot Withdraw isk from vacuum")
             raise ValueError("Cannot Withdraw isk from vacuum")
+        if n > 1000000000000:
+            self._transaction('withdraw',n,'','',receiver,accno,'denied',memo='Err: Too large')
+            raise ValueError("That's too large! Are you serious?")
         balance = int(self.accbook.cell(i,3).value)
         pending = int(self.accbook.cell(i,4).value)
         if n > balance+pending:

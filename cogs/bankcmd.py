@@ -11,7 +11,7 @@ class bankcmd(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name='register',help='新建账户')
+    @commands.command(name='register',help='$register 新建账户')
     async def register(self,ctx):
         user=ctx.message.author
         try:
@@ -22,7 +22,7 @@ class bankcmd(commands.Cog):
             await ctx.send('Congratulations! Your account is created!')
         return
 
-    @commands.command(name='deposit',help='$deposit n 存钱')
+    @commands.command(name='deposit',help='$deposit n 存钱进账户，游戏内需要存钱进军团钱包')
     async def deposit(self,ctx, n: int):
         user=ctx.message.author
         try:
@@ -34,7 +34,7 @@ class bankcmd(commands.Cog):
             await ctx.send('Use $register to create account first!')
         return
 
-    @commands.command(name='withdraw',help='$withdraw n 取钱')
+    @commands.command(name='withdraw',help='$withdraw n 从军团钱包取钱，@Toolman开钱包权限，建议攒笔大的一起提')
     async def withdraw(self,ctx, n: int):
         user=ctx.message.author
         try:
@@ -52,7 +52,7 @@ class bankcmd(commands.Cog):
         sender = ctx.message.author
         try:
             self.bot.bank.Transfer(n,sender.display_name,str(sender.id),receiver.display_name,str(receiver.id),memo)
-            await ctx.send(sender.display_name+' has sent '+receiver.display_name+'{:,}'.format(n)+' isk.')
+            await ctx.send(sender.display_name+' has sent '+receiver.display_name+' {:,}'.format(n)+' isk.')
         except ValueError as err:
             await ctx.send(err)
         except CellNotFound:
@@ -85,7 +85,8 @@ class bankcmd(commands.Cog):
         fields['Type'] = [p[3] for p in pendings]
         fields['Amount'] = ['{:,}'.format(int(p[5])) for p in pendings]
         fields['Time'] = [p[1] for p in pendings]
-        embed = discord.Embed(title = 'Audit process', description = '👍 will approve all, ✅ will approve next, ❌ will deny next')
+        embed = discord.Embed(title = 'Audit process', description = '👍 will approve all, ✅ will approve next, ❌ will deny next.\
+        \n May take some time to interact with the database.')
         for key in fields:
             embed.add_field(name = key, value = '\n'.join(fields[key]))
         msg = await ctx.send(embed=embed)
