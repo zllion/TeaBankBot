@@ -8,3 +8,4 @@ dev*
 teabank-9ce129712f0c.json
 discord.log
 *.db
+archive/

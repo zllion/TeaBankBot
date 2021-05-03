@@ -2,12 +2,10 @@ import os
 import logging
 import random
 import discord
-from gspread.exceptions import CellNotFound
 from datetime import datetime
-from oauth2client.service_account import ServiceAccountCredentials
 from discord.ext import commands
 from dotenv import load_dotenv
-from teabank import Bank
+from teabank import SQLBank
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
@@ -20,14 +18,13 @@ TOKEN = os.getenv('DISCORD_TOKEN_TEST')
 
 extensions = (
     "cogs.bankcmd",
-    "cogs.test",
     )
 
 
 class BankBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.bank = Bank('TestBank')
+        self.bank = SQLBank('TestBank','testbank.db')
         for extension in extensions:
             self.load_extension(extension)
         return
