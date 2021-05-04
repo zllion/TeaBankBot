@@ -1,9 +1,8 @@
 import discord
 import asyncio
 from discord.ext import commands
-from gspread.exceptions import CellNotFound
 
-def check_audit_role(ctx):
+def check_admin_role(ctx):
     #print(ctx.author.id,ctx.bot.owner_id,ctx.author.roles)
     return (ctx.author.id == ctx.bot.owner_id) or ('管理员' in [role.name for role in ctx.author.roles])
 
@@ -17,9 +16,9 @@ class bankcmd(commands.Cog):
         try:
             self.bot.bank.CreateAccount(user.display_name,str(user.id))
         except ValueError as err:
-            await ctx.send(err)
+            await ctx.send('```'+str(err)+'```')
         else:
-            await ctx.send('Congratulations! Your account is created!')
+            await ctx.send('```Congratulations! Your account is created!```')
         return
 
     @commands.command(name='deposit',help='$deposit n 存钱进账户，游戏内需要存钱进军团钱包')
@@ -27,9 +26,9 @@ class bankcmd(commands.Cog):
         user=ctx.message.author
         try:
             self.bot.bank.Deposit(n,user.display_name,str(user.id))
-            await ctx.send(user.display_name+' has deposited '+'{:,}'.format(n)+' isk.')
+            await ctx.send('```'+user.display_name+' has deposited '+'{:,}'.format(n)+' isk.```')
         except ValueError as err:
-            await ctx.send(err)
+            await ctx.send('```'+str(err)+'```')
         return
 
     @commands.command(name='withdraw',help='$withdraw n 从军团钱包取钱，@Toolman开钱包权限，建议攒笔大的一起提')
@@ -37,9 +36,9 @@ class bankcmd(commands.Cog):
         user=ctx.message.author
         try:
             self.bot.bank.Withdraw(n,user.display_name,str(user.id))
-            await ctx.send(user.display_name+' has withdrawn '+'{:,}'.format(n)+' isk.')
+            await ctx.send('```'+user.display_name+' has withdrawn '+'{:,}'.format(n)+' isk.```')
         except ValueError as err:
-            await ctx.send(err)
+            await ctx.send('```'+str(err)+'```')
         return
 
     @commands.command(name='send',help='$send @username n <memo> 转账,转账之前要先deposit')
@@ -47,9 +46,9 @@ class bankcmd(commands.Cog):
         sender = ctx.message.author
         try:
             self.bot.bank.Transfer(n,sender.display_name,str(sender.id),receiver.display_name,str(receiver.id),memo)
-            await ctx.send(sender.display_name+' has sent '+receiver.display_name+' {:,}'.format(n)+' isk.')
+            await ctx.send('```'+sender.display_name+' has sent '+receiver.display_name+' {:,}'.format(n)+' isk.```')
         except ValueError as err:
-            await ctx.send(err)
+            await ctx.send('```'+str(err)+'```')
         return
 
     @commands.command(name='check',help='$check 查账户余额')
@@ -58,9 +57,9 @@ class bankcmd(commands.Cog):
         try:
             balance,pending = self.bot.bank.Check(user.display_name,str(user.id))
         except ValueError as err:
-            await ctx.send(err)
+            await ctx.send('```'+str(err)+'```')
             return
-        await ctx.send(user.display_name + 'Account balance: '+'{:,}'.format(balance)+'; pending: '+'{:,}'.format(pending))
+        await ctx.send('```'+user.display_name + 'Account balance: '+'{:,}'.format(balance)+'; pending: '+'{:,}'.format(pending)+'```')
 
     def _embed_edit(self,embed,fields,i,emoji):
         fields['Name'][i] = emoji + fields['Name'][i]
@@ -73,13 +72,13 @@ class bankcmd(commands.Cog):
         return
 
     @commands.command(name='audit', help='$audit 审计，只有@管理员可以使用')
-    @commands.check(check_audit_role)
+    @commands.check(check_admin_role)
     async def audit(self,ctx):
         user = ctx.author
         user_name = ctx.author.display_name
         pendings = self.bot.bank.GetPendings()
         if pendings == []:
-            await ctx.send('No pending transactions')
+            await ctx.send('```No pending transactions```')
             self._backup_to_gs()
             return
         fields = {}

@@ -62,7 +62,7 @@ class SQLBank():
 
     # create account
     def CreateAccount(self,name: str,user_id: str):
-        accNo = user_id[-6:]
+        accNo = user_id[-9:]
         self.cur.execute("SELECT 1 FROM Accounts WHERE Account = ?", (accNo,))
         data=self.cur.fetchone()
         if data is None:
@@ -76,7 +76,7 @@ class SQLBank():
 
     def Deposit(self,n,receiver,receiverid):
         # prepare variable
-        accNo = receiverid[-6:]
+        accNo = receiverid[-9:]
         # Account Check
         self.cur.execute("SELECT * FROM Accounts WHERE Account = ?", (accNo,))
         data=self.cur.fetchone()
@@ -87,6 +87,8 @@ class SQLBank():
         if n < 0:
             self._transaction('deposit',n,'','',receiver,accNo,'denied',memo='Err: Cannot Deposit negative isk')
             raise ValueError("Cannot Deposit negative isk")
+        if n > 1000000000000:
+            raise ValueError("That's too large!")
         pending = data[4]
         self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending+n,accNo))
         # write record
@@ -96,7 +98,7 @@ class SQLBank():
 
     def Withdraw(self,n,receiver,receiverid):
         # prepare variable
-        accNo = receiverid[-6:]
+        accNo = receiverid[-9:]
         # Account Check
         self.cur.execute("SELECT * FROM Accounts WHERE Account = ?", (accNo,))
         data=self.cur.fetchone()
@@ -107,6 +109,8 @@ class SQLBank():
         if n < 0:
             self._transaction('withdraw',n,'','',receiver,accNo,'denied',memo='Err: Cannot Withdraw isk from vacuum')
             raise ValueError("Cannot Withdraw isk from vacuum")
+        if n > 1000000000000:
+            raise ValueError("That's too large!")
         balance, pending = data[3],data[4]
         if n > balance+pending:
             self._transaction('withdraw',n,'','',receiver,accNo,'denied',memo="Err: Balance is not enough")
@@ -118,8 +122,8 @@ class SQLBank():
         return
 
     def Transfer(self,n,sender,senderid,receiver,receiverid,memo=None):
-        senderacc = str(senderid)[-6:]
-        receiveracc = str(receiverid)[-6:]
+        senderacc = str(senderid)[-9:]
+        receiveracc = str(receiverid)[-9:]
         self.cur.execute("SELECT * FROM Accounts WHERE Account = ?", (senderacc,))
         data=self.cur.fetchone()
         if data is None:
@@ -150,7 +154,7 @@ class SQLBank():
         return
 
     def Check(self,user,userid):
-        accNo = str(userid)[-6:]
+        accNo = str(userid)[-9:]
         self.cur.execute("SELECT * FROM Accounts WHERE Account = ?", (accNo,))
         data=self.cur.fetchone()
         if data is None:
