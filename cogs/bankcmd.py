@@ -1,14 +1,51 @@
 import discord
 import asyncio
+import itertools
 from discord.ext import commands
 
 def check_admin_role(ctx):
-    #print(ctx.author.id,ctx.bot.owner_id,ctx.author.roles)
+    print(ctx.author.id,ctx.author.roles)
     return (ctx.author.id == ctx.bot.owner_id) or ('管理员' in [role.name for role in ctx.author.roles])
 
 class bankcmd(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    def _toggle_number(self,n):
+        amount = ['{:,}'.format(n),'{:.2e}'.format(n),]
+        # English
+        if n>=0 and n//(10**9) > 0 or n<0 and n//(10**9)<-1:
+            amount.append('{:.2f}'.format(n/(10**9)).rstrip('0').rstrip('.')+'B')
+        elif n>=0 and n//(10**6) > 0 or n<0 and n//(10**6)<-1:
+            amount.append('{:.2f}'.format(n/(10**6)).rstrip('0').rstrip('.')+'M')
+        elif n>=0 and n//(10**3) > 0 or n<0 and n//(10**3)<-1:
+            amount.append('{:.2f}'.format(n/(10**3)).rstrip('0').rstrip('.')+'K')
+        # Chinese
+        if n>=0 and n//(10**8) > 0 or n<0 and n//(10**8)<-1:
+            amount.append('{:.2f}'.format(n/(10**8)).rstrip('0').rstrip('.')+'亿')
+        elif n>=0 and n//(10**4) > 0 or n<0 and n//(10**4)<-1:
+            amount.append('{:.2f}'.format(n/(10**4)).rstrip('0').rstrip('.')+'万')
+        #print(amount)
+        return itertools.cycle(amount)
+
+    async def _reply(self,ctx,premsg,*arg):
+        user=ctx.message.author
+        amount = [self._toggle_number(n) for n in arg]
+        s = [next(n) for n in amount]
+        msg = await ctx.send(premsg.format(*s))
+        await msg.add_reaction('🔄')
+        def check(reaction, user):
+            return not user.bot and reaction.message == msg
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=3600.0, check=check)
+            except asyncio.TimeoutError:
+                break
+            else:
+                if reaction.emoji == '🔄':
+                    await reaction.remove(user)
+                    s = [next(n) for n in amount]
+                    await msg.edit(content=premsg.format(*s))
 
     @commands.command(name='register',help='$register 新建账户')
     async def register(self,ctx):
@@ -21,34 +58,65 @@ class bankcmd(commands.Cog):
             await ctx.send('```Congratulations! Your account is created!```')
         return
 
-    @commands.command(name='deposit',help='$deposit n 存钱进账户，游戏内需要存钱进军团钱包')
-    async def deposit(self,ctx, n: int):
+    @commands.command(name='deposit',help='$deposit n memo(Optional) 存钱进账户，游戏内需要存钱进军团钱包')
+    async def deposit(self,ctx, n: int, memo = ''):
         user=ctx.message.author
         try:
-            self.bot.bank.Deposit(n,user.display_name,str(user.id))
-            await ctx.send('```'+user.display_name+' has deposited '+'{:,}'.format(n)+' isk.```')
+            self.bot.bank.Deposit(n,user.display_name,str(user.id),memo)
         except ValueError as err:
             await ctx.send('```'+str(err)+'```')
+        else:
+            premsg = '```'+user.display_name+' has deposited {} isk```'
+            await self._reply(ctx,premsg,n)
+
         return
 
-    @commands.command(name='withdraw',help='$withdraw n 从军团钱包取钱，@Toolman开钱包权限，建议攒笔大的一起提')
-    async def withdraw(self,ctx, n: int):
+    @commands.command(name='withdraw',help='$withdraw n memo(Optional) 从军团钱包取钱，@Toolman开钱包权限，建议攒笔大的一起提')
+    async def withdraw(self,ctx, n: int, memo = ''):
         user=ctx.message.author
         try:
-            self.bot.bank.Withdraw(n,user.display_name,str(user.id))
-            await ctx.send('```'+user.display_name+' has withdrawn '+'{:,}'.format(n)+' isk.```')
+            self.bot.bank.Withdraw(n,user.display_name,str(user.id),memo)
         except ValueError as err:
             await ctx.send('```'+str(err)+'```')
+        else:
+            premsg = '```'+user.display_name+' has withdrawn {} isk```'
+            await self._reply(ctx,premsg,n)
         return
 
-    @commands.command(name='send',help='$send @username n <memo> 转账,转账之前要先deposit')
+    @commands.command(name='send',help='$send @username n memo(Optional) 转账,转账之前要先deposit')
     async def send(self,ctx: commands.Context, receiver: discord.User, n: int, memo=''):
         sender = ctx.message.author
+        amount = self._toggle_number(n)
+        premsg = '``` You will send '+receiver.display_name+' {} isk, press ✅ to confirm, ❌ to cancel.```'
+        msg = await ctx.send(premsg.format(next(amount)))
+        await msg.add_reaction('🔄')
+        await msg.add_reaction('✅')
+        await msg.add_reaction('❌')
+        def check(reaction, user):
+            return not user.bot and reaction.message == msg
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=600.0, check=check)
+            except asyncio.TimeoutError:
+                await ctx.send('Time out')
+                return
+            else:
+                if reaction.emoji == '🔄':
+                    await reaction.remove(user)
+                    await msg.edit(content=premsg.format(next(amount)))
+                    continue
+                elif reaction.emoji == '✅':
+                    break
+                elif reaction.emoji == '❌':
+                    await ctx.send('Action canceled!')
+                    return
         try:
             self.bot.bank.Transfer(n,sender.display_name,str(sender.id),receiver.display_name,str(receiver.id),memo)
-            await ctx.send('```'+sender.display_name+' has sent '+receiver.display_name+' {:,}'.format(n)+' isk.```')
         except ValueError as err:
             await ctx.send('```'+str(err)+'```')
+        else:
+            premsg = '```'+sender.display_name+' has sent '+receiver.display_name+' {} isk.```'
+            await self._reply(ctx,premsg,n)
         return
 
     @commands.command(name='check',help='$check 查账户余额')
@@ -59,7 +127,21 @@ class bankcmd(commands.Cog):
         except ValueError as err:
             await ctx.send('```'+str(err)+'```')
             return
-        await ctx.send('```'+user.display_name + 'Account balance: '+'{:,}'.format(balance)+'; pending: '+'{:,}'.format(pending)+'```')
+        else:
+            premsg = '```'+user.display_name + 'Account balance: {} isk, Pending: {} isk.```'
+            await self._reply(ctx,premsg,balance,pending)
+
+    # @commands.command(name='record', help='$record n(Optional) 查询最近n笔交易')
+    # async def record(self,ctx,n=5):
+    #     user=ctx.message.author
+    #     try:
+    #         data=self.bot.bank.PullTransactions(user.id,n)
+    #     except ValueError as err:
+    #         await ctx.send('```'+str(err)+'```')
+    #     else:
+    #         pass
+
+
 
     def _embed_edit(self,embed,fields,i,emoji):
         fields['Name'][i] = emoji + fields['Name'][i]
@@ -86,21 +168,22 @@ class bankcmd(commands.Cog):
         fields['Type'] = [p[3] for p in pendings]
         fields['Amount'] = ['{:,}'.format(int(p[2])) for p in pendings]
         fields['Time'] = [p[1] for p in pendings]
-        embed = discord.Embed(title = 'Audit process', description = '👍 will approve all, ✅ will approve next, ❌ will deny next.\
-        \n May take some time to interact with the database.')
+        embed = discord.Embed(title = 'Audit process', description = '👍 will approve all. \n✅ will approve next. \n❌ will deny next.\
+        \n⏸️ will skip next. \nMay take some time to interact with the database.')
         for key in fields:
             embed.add_field(name = key, value = '\n'.join(fields[key]))
         msg = await ctx.send(embed=embed)
         await msg.add_reaction('👍')
         await msg.add_reaction('✅') # check mark
         await msg.add_reaction('❌') # cross
+        await msg.add_reaction('⏸️') # stop
         l = len(pendings)
         i = 0
         def check(reaction, user):
             return user == ctx.author and reaction.message == msg
         while i < l:
             try:
-                reaction, user = await self.bot.wait_for('reaction_add', timeout=3600.0, check=check)
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=600.0, check=check)
             except asyncio.TimeoutError:
                 await ctx.send('time out')
             else:
@@ -121,6 +204,12 @@ class bankcmd(commands.Cog):
                         await msg.edit(embed = embed)
                         i += 1
                     await reaction.remove(user)
+                elif reaction.emoji == '⏸️':
+                    await reaction.remove(user)
+                    self._embed_edit(embed,fields,i,reaction.emoji)
+                    await msg.edit(embed = embed)
+                else:
+                    continue
                 i += 1
         self.bot.bank.conn.commit()
         self._backup_to_gs()
