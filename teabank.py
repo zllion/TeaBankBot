@@ -39,7 +39,7 @@ class SQLBank():
         self.cur.execute(sql_create_accounts)
         self.cur.execute(sql_create_transactions)
 
-         # make a transaction record to google sheet
+    # make a transaction record
     def _transaction(self,ty,n,sender,senderacc,receiver,receiveracc,status,memo=''):
         now = datetime.now()
         current_time = now.strftime("%D %H:%M:%S")
@@ -72,7 +72,6 @@ class SQLBank():
         else:
             raise ValueError('Account exits!')
         self.conn.commit()
-
 
     def Deposit(self,n,receiver,receiverid,memo=''):
         # prepare variable
@@ -124,6 +123,8 @@ class SQLBank():
     def Transfer(self,n,sender,senderid,receiver,receiverid,memo=''):
         senderacc = str(senderid)[-9:]
         receiveracc = str(receiverid)[-9:]
+        if senderacc == receiveracc:
+            raise ValueError('Error: Transfer between same account.')
         self.cur.execute("SELECT * FROM Accounts WHERE Account = ?", (senderacc,))
         data=self.cur.fetchone()
         if data is None:
@@ -166,14 +167,14 @@ class SQLBank():
         #pull recent n transactions
         accNo = str(userid)[-9:]
         self.cur.execute('''
-        SELECT Transactions.TransactionID,Transactions.Time,Transactions.Amount,Transactions.Type,Accounts.Name
+        SELECT Transactions.TransactionID,Transactions.Time,Transactions.Amount,Transactions.Type,Accounts.Name,Transactions.Status
         FROM Transactions JOIN Accounts
         ON Transactions."Receiver Account"=Accounts.Account
-        WHERE Transactions."Receiver Account"=?
-        ''',(accNo,))
-        data = self.cur.fetchall()[:n]
+        WHERE Transactions."Receiver Account"=? OR Transactions."Sender Account"=?
+        ''',(accNo,accNo))
+        data = self.cur.fetchall()[-n:]
         if data is None:
-            raise ValueError('No recent transactions for this data, or no account.')
+            raise ValueError('No recent transactions for this account, or no account.')
         return data
 
 

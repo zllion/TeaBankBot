@@ -135,16 +135,75 @@ class bankcmd(commands.Cog):
             premsg = '```'+user.display_name + 'Account balance: {} isk, Pending: {} isk.```'
             await self._reply(ctx,premsg,balance,pending)
 
-    # @commands.command(name='record', help='$record n(Optional) 查询最近n笔交易')
-    # async def record(self,ctx,n=5):
-    #     user=ctx.message.author
-    #     try:
-    #         data=self.bot.bank.PullTransactions(user.id,n)
-    #     except ValueError as err:
-    #         await ctx.send('```'+str(err)+'```')
-    #     else:
-    #         pass
+    @commands.command(name='record', help='$record n(Optional) 查询最近n笔交易')
+    async def record(self,ctx,n=5):
+        user=ctx.message.author
+        try:
+            data=self.bot.bank.PullTransactions(user.id,n)
+        except ValueError as err:
+            await ctx.send('```'+str(err)+'```')
+        else:
+            fields = {}
+            fields['Receiver'] = [p[4] for p in data]
+            maxl = max([len(str(p[2]))+len(str(p[2]))//3 for p in data])+1
+            amount = [self._toggle_number(int(p[2])) for p in data]
+            fields['Action'] = [data[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
+            fields['Time'] = [p[1] for p in data]
+            embed = discord.Embed(title = 'Record', description = 'Check recent {} records, 🔄 changes the number representation'.format(n))
+            for key in fields:
+                embed.add_field(name = key, value = '\n'.join(fields[key]))
+            msg = await ctx.send(embed=embed)
+            await msg.add_reaction('🔄')
+            def check(reaction, user):
+                return user == ctx.author and reaction.message == msg
+            while True:
+                try:
+                    reaction, user = await self.bot.wait_for('reaction_add', timeout=600.0, check=check)
+                except asyncio.TimeoutError:
+                    await ctx.send('time out')
+                    break
+                else:
+                    if reaction.emoji == '🔄':
+                        await reaction.remove(user)
+                        fields['Action'] = [data[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
+                        embed.set_field_at(1,name = 'Action', value = '\n'.join(fields['Action']))
+                        await msg.edit(embed = embed)
+                        continue
 
+    @commands.command(name='recall', help='$record 取消上一笔存款或取款操作')
+    async def recall(self,ctx):
+        user=ctx.message.author
+        try:
+            data=self.bot.bank.PullTransactions(user.id,1)[0]
+        except ValueError as err:
+            await ctx.send('```'+str(err)+'```')
+        else:
+            if not data:
+                await ctx.send('```No transaction found```')
+            elif data[3] != 'deposit' and data[3] !='withdraw':
+                await ctx.send('```Last transaction cannot be retracted.```')
+            elif data[5] != 'pending':
+                await ctx.send('```Last transaction has already been auditted.```')
+            else:
+                msg = await ctx.send('```Confirm recalling this transaction {} {} isk```'.format(data[3],data[2]))
+                await msg.add_reaction('✅') # check mark
+                await msg.add_reaction('❌') # cross
+                def check(reaction, user):
+                    return user == ctx.author and reaction.message == msg
+                while True:
+                    try:
+                        reaction, user = await self.bot.wait_for('reaction_add', timeout=600.0, check=check)
+                    except asyncio.TimeoutError:
+                        await ctx.send('time out')
+                        return
+                    else:
+                        if reaction.emoji == '✅':
+                            self.bot.bank.Deny(data[0],ctx.author.display_name)
+                            await ctx.send('```Recalled```')
+                            return
+                        elif reaction.emoji == '❌':
+                            await ctx.send('```Cancelled```')
+                            return
 
 
     def _embed_edit(self,embed,fields,i,emoji):
@@ -170,8 +229,6 @@ class bankcmd(commands.Cog):
         fields = {}
         fields['Name'] = [p[4] for p in pendings]
         maxl = max([len(str(p[2]))+len(str(p[2]))//3 for p in pendings])+1
-        # fields['Type'] = [p[3] for p in pendings]
-        # fields['Amount'] = ['{:,}'.format(int(p[2])) for p in pendings]
         amount = [self._toggle_number(int(p[2])) for p in pendings]
         fields['Action'] = [pendings[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
         fields['Time'] = [p[1] for p in pendings]
@@ -194,6 +251,7 @@ class bankcmd(commands.Cog):
                 reaction, user = await self.bot.wait_for('reaction_add', timeout=600.0, check=check)
             except asyncio.TimeoutError:
                 await ctx.send('time out')
+                break
             else:
                 if reaction.emoji == '✅':
                     self.bot.bank.Approve(pendings[i][0],user_name)
