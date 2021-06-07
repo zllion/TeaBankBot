@@ -18,6 +18,7 @@ TOKEN = os.getenv('DISCORD_TOKEN_TEST')
 
 extensions = (
     "cogs.bankcmd",
+    "cogs.test"
     )
 
 
@@ -29,6 +30,6 @@ class BankBot(commands.Bot):
             self.load_extension(extension)
         return
 
-TeaBot = BankBot(command_prefix='$',owner_id = 356096513828454411)
+TeaBot = BankBot(command_prefix='¥',owner_id = 356096513828454411)
 
 TeaBot.run(TOKEN)

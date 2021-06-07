@@ -74,7 +74,7 @@ class SQLBank():
         self.conn.commit()
 
 
-    def Deposit(self,n,receiver,receiverid):
+    def Deposit(self,n,receiver,receiverid,memo=''):
         # prepare variable
         accNo = receiverid[-9:]
         # Account Check
@@ -85,18 +85,18 @@ class SQLBank():
 
         #eligibility check
         if n < 0:
-            self._transaction('deposit',n,'','',receiver,accNo,'denied',memo='Err: Cannot Deposit negative isk')
+            self._transaction('deposit',n,'','',receiver,accNo,'denied',memo=memo+'/Err: Cannot Deposit negative isk')
             raise ValueError("Cannot Deposit negative isk")
         if n > 1000000000000:
             raise ValueError("That's too large!")
         pending = data[4]
         self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending+n,accNo))
         # write record
-        self._transaction('deposit',n,'','',receiver,accNo,'pending')
+        self._transaction('deposit',n,'','',receiver,accNo,'pending',memo)
         self.conn.commit()
         return
 
-    def Withdraw(self,n,receiver,receiverid):
+    def Withdraw(self,n,receiver,receiverid,memo=''):
         # prepare variable
         accNo = receiverid[-9:]
         # Account Check
@@ -107,21 +107,21 @@ class SQLBank():
 
         #eligibility check
         if n < 0:
-            self._transaction('withdraw',n,'','',receiver,accNo,'denied',memo='Err: Cannot Withdraw isk from vacuum')
+            self._transaction('withdraw',n,'','',receiver,accNo,'denied',memo=memo + '/Err: Cannot Withdraw isk from vacuum')
             raise ValueError("Cannot Withdraw isk from vacuum")
         if n > 1000000000000:
             raise ValueError("That's too large!")
         balance, pending = data[3],data[4]
         if n > balance+pending:
-            self._transaction('withdraw',n,'','',receiver,accNo,'denied',memo="Err: Balance is not enough")
+            self._transaction('withdraw',n,'','',receiver,accNo,'denied',memo=memo + "/Err: Balance is not enough")
             raise ValueError("Balance is not enough")
         self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending-n,accNo))
         # write record
-        self._transaction('withdraw',n,'','',receiver,accNo,'pending')
+        self._transaction('withdraw',n,'','',receiver,accNo,'pending',memo)
         self.conn.commit()
         return
 
-    def Transfer(self,n,sender,senderid,receiver,receiverid,memo=None):
+    def Transfer(self,n,sender,senderid,receiver,receiverid,memo=''):
         senderacc = str(senderid)[-9:]
         receiveracc = str(receiverid)[-9:]
         self.cur.execute("SELECT * FROM Accounts WHERE Account = ?", (senderacc,))
@@ -135,15 +135,15 @@ class SQLBank():
 
         # eligibility check
         if n < 0:
-            self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo="Err: Please don't, use $request")
+            self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo=memo + "/Err: negative money")
             raise ValueError("Please don't send negative isk, you cannot get money from other's account.")
         balance, pending = data[3],data[4]
         # check validity
         if n > balance+pending:
-            self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo="Err: Balance is not enough")
+            self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo=memo + "/Err: Balance is not enough")
             raise ValueError("Balance is not enough")
         if balance < -1000000000:
-            self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo="Err: Isk pending please request for auditing")
+            self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo=memo+"/Err: Isk pending please request for auditing")
             raise ValueError("Isk pending please request for auditing")
         # update balance
         self._balance_add(senderacc,-n)
@@ -162,6 +162,19 @@ class SQLBank():
         balance, pending = data[3],data[4]
         return balance, pending
 
+    def PullTransactions(self,userid,n):
+        #pull recent n transactions
+        accNo = str(userid)[-9:]
+        self.cur.execute('''
+        SELECT Transactions.TransactionID,Transactions.Time,Transactions.Amount,Transactions.Type,Accounts.Name
+        FROM Transactions JOIN Accounts
+        ON Transactions."Receiver Account"=Accounts.Account
+        WHERE Transactions."Receiver Account"=?
+        ''',(accNo,))
+        data = self.cur.fetchall()[:n]
+        if data is None:
+            raise ValueError('No recent transactions for this data, or no account.')
+        return data
 
 
     def GetPendings(self):
