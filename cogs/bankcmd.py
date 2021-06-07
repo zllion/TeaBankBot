@@ -181,7 +181,7 @@ class bankcmd(commands.Cog):
                 await ctx.send('```No transaction found```')
             elif data[3] != 'deposit' and data[3] !='withdraw':
                 await ctx.send('```Last transaction cannot be retracted.```')
-            elif data[5] != 'pending':
+            elif data[6] != 'pending':
                 await ctx.send('```Last transaction has already been auditted.```')
             else:
                 msg = await ctx.send('```Confirm recalling this transaction {} {} isk```'.format(data[3],data[2]))
