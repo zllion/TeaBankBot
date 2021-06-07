@@ -20,11 +20,15 @@ class bankcmd(commands.Cog):
             amount.append('{:.2f}'.format(n/(10**6)).rstrip('0').rstrip('.')+'M')
         elif n>=0 and n//(10**3) > 0 or n<0 and n//(10**3)<-1:
             amount.append('{:.2f}'.format(n/(10**3)).rstrip('0').rstrip('.')+'K')
+        else:
+            amount.append('{:,}'.format(n))
         # Chinese
         if n>=0 and n//(10**8) > 0 or n<0 and n//(10**8)<-1:
             amount.append('{:.2f}'.format(n/(10**8)).rstrip('0').rstrip('.')+'亿')
         elif n>=0 and n//(10**4) > 0 or n<0 and n//(10**4)<-1:
             amount.append('{:.2f}'.format(n/(10**4)).rstrip('0').rstrip('.')+'万')
+        else:
+            amount.append('{:,}'.format(n))
         #print(amount)
         return itertools.cycle(amount)
 
@@ -165,8 +169,11 @@ class bankcmd(commands.Cog):
             return
         fields = {}
         fields['Name'] = [p[4] for p in pendings]
-        fields['Type'] = [p[3] for p in pendings]
-        fields['Amount'] = ['{:,}'.format(int(p[2])) for p in pendings]
+        maxl = max([len(str(p[2]))+len(str(p[2]))//3 for p in pendings])+1
+        # fields['Type'] = [p[3] for p in pendings]
+        # fields['Amount'] = ['{:,}'.format(int(p[2])) for p in pendings]
+        amount = [self._toggle_number(int(p[2])) for p in pendings]
+        fields['Action'] = [pendings[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
         fields['Time'] = [p[1] for p in pendings]
         embed = discord.Embed(title = 'Audit process', description = '👍 will approve all. \n✅ will approve next. \n❌ will deny next.\
         \n⏸️ will skip next. \nMay take some time to interact with the database.')
@@ -177,6 +184,7 @@ class bankcmd(commands.Cog):
         await msg.add_reaction('✅') # check mark
         await msg.add_reaction('❌') # cross
         await msg.add_reaction('⏸️') # stop
+        await msg.add_reaction('🔄')
         l = len(pendings)
         i = 0
         def check(reaction, user):
@@ -208,6 +216,12 @@ class bankcmd(commands.Cog):
                     await reaction.remove(user)
                     self._embed_edit(embed,fields,i,reaction.emoji)
                     await msg.edit(embed = embed)
+                elif reaction.emoji == '🔄':
+                    await reaction.remove(user)
+                    fields['Action'] = [pendings[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
+                    embed.set_field_at(1,name = 'Action', value = '\n'.join(fields['Action']))
+                    await msg.edit(embed = embed)
+                    continue
                 else:
                     continue
                 i += 1
