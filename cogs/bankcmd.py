@@ -144,7 +144,7 @@ class bankcmd(commands.Cog):
             await ctx.send('```'+str(err)+'```')
         else:
             fields = {}
-            fields['Receiver'] = [p[4] for p in data]
+            fields['Receiver'] = [p[5] for p in data]
             maxl = max([len(str(p[2]))+len(str(p[2]))//3 for p in data])+1
             amount = [self._toggle_number(int(p[2])) for p in data]
             fields['Action'] = [data[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
