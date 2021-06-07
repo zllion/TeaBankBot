@@ -220,7 +220,7 @@ class bankcmd(commands.Cog):
     async def audit(self,ctx):
         user = ctx.author
         user_name = ctx.author.display_name
-        pendings = self.bot.bank.GetPendings()
+        pendings = self.bot.bank.GetPendings()[::-1]
         if pendings == []:
             await ctx.send('```No pending transactions```')
             self._backup_to_gs()
