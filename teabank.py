@@ -167,10 +167,11 @@ class SQLBank():
         #pull recent n transactions
         accNo = str(userid)[-9:]
         self.cur.execute('''
-        SELECT Transactions.TransactionID,Transactions.Time,Transactions.Amount,Transactions.Type,Accounts.Name,Transactions.Status
-        FROM Transactions JOIN Accounts
-        ON Transactions."Receiver Account"=Accounts.Account
-        WHERE Transactions."Receiver Account"=? OR Transactions."Sender Account"=?
+        SELECT Transactions.TransactionID,Transactions.Time,Transactions.Amount,Transactions.Type,temp1.Name,temp2.Name,Transactions.Status
+        FROM Transactions
+        LEFT JOIN Accounts AS temp1 ON Transactions."Sender Account"=temp1.Account
+        LEFT JOIN Accounts AS temp2 ON Transactions."Receiver Account"=temp2.Account
+        WHERE (Transactions."Receiver Account"=? OR Transactions."Sender Account"=?) AND (Transactions.Status <> "denied")
         ''',(accNo,accNo))
         data = self.cur.fetchall()[-n:]
         if data is None:

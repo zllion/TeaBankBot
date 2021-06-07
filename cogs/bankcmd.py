@@ -160,7 +160,6 @@ class bankcmd(commands.Cog):
                 try:
                     reaction, user = await self.bot.wait_for('reaction_add', timeout=600.0, check=check)
                 except asyncio.TimeoutError:
-                    await ctx.send('time out')
                     break
                 else:
                     if reaction.emoji == '🔄':
@@ -235,7 +234,8 @@ class bankcmd(commands.Cog):
         embed = discord.Embed(title = 'Audit process', description = '👍 will approve all. \n✅ will approve next. \n❌ will deny next.\
         \n⏸️ will skip next. \nMay take some time to interact with the database.')
         for key in fields:
-            embed.add_field(name = key, value = '\n'.join(fields[key]))
+            value = '\n'.join(fields[key])
+            embed.add_field(name = key, value = value)
         msg = await ctx.send(embed=embed)
         await msg.add_reaction('👍')
         await msg.add_reaction('✅') # check mark
@@ -277,7 +277,7 @@ class bankcmd(commands.Cog):
                 elif reaction.emoji == '🔄':
                     await reaction.remove(user)
                     fields['Action'] = [pendings[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
-                    embed.set_field_at(1,name = 'Action', value = '\n'.join(fields['Action']))
+                    embed.set_field_at(1,name = 'Action', value ='\n'.join(fields['Action']))
                     await msg.edit(embed = embed)
                     continue
                 else:
