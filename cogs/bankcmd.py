@@ -238,6 +238,7 @@ class bankcmd(commands.Cog):
         self.bot.bank.BackUpGS()
         return
 
+
     @commands.command(name='audit', help='$audit 审计，只有@管理员可以使用')
     @commands.check(check_admin_role)
     async def audit(self,ctx):
@@ -310,6 +311,42 @@ class bankcmd(commands.Cog):
         self._backup_to_gs()
         return
 
+    @commands.command(name='admin-send', help='$admin-send 会计号向成员账号转账，只有管理员可以使用')
+    @commands.check(check_admin_role)
+    async def admin_send(self,ctx: commands.Context, receiver: discord.User, n: int, memo=''):
+        operator = ctx.message.author
+        amount = self._toggle_number(n)
+        premsg = '``` Corp will send '+receiver.display_name+' {} isk, press ✅ to confirm, ❌ to cancel.```'
+        msg = await ctx.send(premsg.format(next(amount)))
+        await msg.add_reaction('🔄')
+        await msg.add_reaction('✅')
+        await msg.add_reaction('❌')
+        def check(reaction, user):
+            return not user.bot and reaction.message == msg
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=600.0, check=check)
+            except asyncio.TimeoutError:
+                await ctx.send('Time out')
+                return
+            else:
+                if reaction.emoji == '🔄':
+                    await reaction.remove(user)
+                    await msg.edit(content=premsg.format(next(amount)))
+                    continue
+                elif reaction.emoji == '✅':
+                    break
+                elif reaction.emoji == '❌':
+                    await ctx.send('Action canceled!')
+                    return
+        try:
+            self.bot.bank.Admin_add(n,operator.display_name,receiver.display_name,str(receiver.id),memo)
+        except ValueError as err:
+            await ctx.send('```'+str(err)+'```')
+        else:
+            premsg = '```Corp has sent '+receiver.display_name+' {} isk.```'
+            await self._reply(ctx,premsg,n)
+        return
 
 
 def setup(bot):

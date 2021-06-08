@@ -40,11 +40,11 @@ class SQLBank():
         self.cur.execute(sql_create_transactions)
 
     # make a transaction record
-    def _transaction(self,ty,n,sender,senderacc,receiver,receiveracc,status,memo=''):
+    def _transaction(self,ty,n,sender,senderacc,receiver,receiveracc,status,memo='',operator=''):
         now = datetime.now()
         current_time = now.strftime("%D %H:%M:%S")
-        self.cur.execute('''INSERT INTO Transactions ("Type","Time","Sender Account","Receiver Account","Status","Amount","Memo")
-        VALUES (?,?,?,?,?,?,?)''',(ty,current_time,senderacc,receiveracc,status,n,memo))
+        self.cur.execute('''INSERT INTO Transactions ("Type","Time","Sender Account","Receiver Account","Status","Amount","Memo","Operator")
+        VALUES (?,?,?,?,?,?,?,?)''',(ty,current_time,senderacc,receiveracc,status,n,memo,operator))
         # update pending
         self.cur.execute("SELECT TransactionID FROM Transactions WHERE Time = ?",(current_time,))
         transid = self.cur.fetchone()[0]
@@ -177,7 +177,6 @@ class SQLBank():
         data2=self.cur.fetchone()
         if data2 is None:
             self.CreateAccount(receiver,receiverid)
-
         # eligibility check
         if n < 0:
             self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo=memo + "/Err: negative money")
@@ -317,3 +316,18 @@ class SQLBank():
         self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending-amount,accNo))
         self.cur.execute("UPDATE Transactions SET Status = ?, Operator = ? WHERE TransactionID = ?",('denied',operator,transid))
         self.conn.commit()
+
+    def Admin_add(self,n,operator,receiver,receiverid,memo):
+        receiveracc = str(receiverid)[-9:]
+        self.cur.execute("SELECT * FROM Accounts WHERE Account = ?", (receiveracc,))
+        data2=self.cur.fetchone()
+        if data2 is None:
+            self.CreateAccount(receiver,receiverid)
+        # eligibility check
+        if n < 0:
+            raise ValueError("Please don't send negative isk, you cannot get money from other's account.")
+        self._balance_add(receiveracc,n)
+        # write record
+        self._transaction('admin-send',n,'','',receiver,receiveracc,'done',memo,operator)
+        self.conn.commit()
+        return
