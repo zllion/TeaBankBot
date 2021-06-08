@@ -119,6 +119,27 @@ class SQLBank():
         self.conn.commit()
         return
 
+    def Request(self,n,receiver,receiverid,memo=''):
+        # prepare variable
+        accNo = receiverid[-9:]
+        # Account Check
+        self.cur.execute("SELECT * FROM Accounts WHERE Account = ?", (accNo,))
+        data=self.cur.fetchone()
+        if data is None:
+            raise ValueError('Account not found, please $register.')
+        #eligibility check
+        if n < 0:
+            self._transaction('request',n,'','',receiver,accNo,'denied',memo=memo+'/Err: Cannot Request negative isk')
+            raise ValueError("Cannot Request negative isk")
+        if n > 100000000000:
+            raise ValueError("That's too large!")
+        pending = data[4]
+        self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending+n,accNo))
+        # write record
+        self._transaction('request',n,'','',receiver,accNo,'pending',memo)
+        self.conn.commit()
+        return
+
     def Donate(self,n,receiver,receiverid,memo=''):
         # prepare variable
         accNo = receiverid[-9:]
@@ -260,7 +281,7 @@ class SQLBank():
             raise ValueError('Account not found')
         balance, pending = data2[3],data2[4]
         # update
-        if data1[1] == 'deposit':
+        if data1[1] == 'deposit' or data1[1] == 'request':
             amount = amount
         elif data1[1] == 'withdraw' or data1[1] == 'donate':
             amount = -amount
@@ -287,7 +308,7 @@ class SQLBank():
             raise ValueError('Account not found')
         balance, pending = data2[3],data2[4]
         # update
-        if data1[1] == 'deposit':
+        if data1[1] == 'deposit' or data1[1] == 'request':
             amount = amount
         elif data1[1] == 'withdraw' or data1[1] == 'donate':
             amount = -amount

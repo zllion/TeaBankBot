@@ -72,7 +72,6 @@ class bankcmd(commands.Cog):
         else:
             premsg = '```'+user.display_name+' has deposited {} isk```'
             await self._reply(ctx,premsg,n)
-
         return
 
     @commands.command(name='withdraw',help='$withdraw n memo(Optional) 从军团钱包取钱，@Toolman开钱包权限，建议攒笔大的一起提')
@@ -120,6 +119,18 @@ class bankcmd(commands.Cog):
             await ctx.send('```'+str(err)+'```')
         else:
             premsg = '```'+sender.display_name+' has sent '+receiver.display_name+' {} isk.```'
+            await self._reply(ctx,premsg,n)
+        return
+
+    @commands.command(name='request',help='$request n memo(Optional) 向军团会计索取费用，通常用于与会计好交易，当铺，制造，或赎回基金')
+    async def request(self,ctx, n: int, memo = ''):
+        user=ctx.message.author
+        try:
+            self.bot.bank.Request(n,user.display_name,str(user.id),memo)
+        except ValueError as err:
+            await ctx.send('```'+str(err)+'```')
+        else:
+            premsg = '```'+user.display_name+' has requested {} isk```'
             await self._reply(ctx,premsg,n)
         return
 
@@ -191,7 +202,7 @@ class bankcmd(commands.Cog):
         else:
             if not data:
                 await ctx.send('```No transaction found```')
-            elif data[3] != 'deposit' and data[3] !='withdraw' and data[3] !='donate':
+            elif data[3] not in ['deposit','withdraw','donate','request']:
                 await ctx.send('```Last transaction cannot be retracted.```')
             elif data[6] != 'pending':
                 await ctx.send('```Last transaction has already been auditted.```')
