@@ -103,7 +103,6 @@ class SQLBank():
         data=self.cur.fetchone()
         if data is None:
             raise ValueError('Account not found, please $register.')
-
         #eligibility check
         if n < 0:
             self._transaction('withdraw',n,'','',receiver,accNo,'denied',memo=memo + '/Err: Cannot Withdraw isk from vacuum')
@@ -117,6 +116,30 @@ class SQLBank():
         self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending-n,accNo))
         # write record
         self._transaction('withdraw',n,'','',receiver,accNo,'pending',memo)
+        self.conn.commit()
+        return
+
+    def Donate(self,n,receiver,receiverid,memo=''):
+        # prepare variable
+        accNo = receiverid[-9:]
+        # Account Check
+        self.cur.execute("SELECT * FROM Accounts WHERE Account = ?", (accNo,))
+        data=self.cur.fetchone()
+        if data is None:
+            raise ValueError('Account not found, please $register.')
+        #eligibility check
+        if n < 0:
+            self._transaction('donate',n,'','',receiver,accNo,'denied',memo=memo + '/Err: Cannot Donate Negative isk')
+            raise ValueError("Cannot Donate Negative isk")
+        if n > 1000000000000:
+            raise ValueError("That's too large!")
+        balance, pending = data[3],data[4]
+        if n > balance+pending:
+            self._transaction('donate',n,'','',receiver,accNo,'denied',memo=memo + "/Err: Balance is not enough")
+            raise ValueError("Balance is not enough")
+        self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending-n,accNo))
+        # write record
+        self._transaction('donate',n,'','',receiver,accNo,'pending',memo)
         self.conn.commit()
         return
 
@@ -239,7 +262,7 @@ class SQLBank():
         # update
         if data1[1] == 'deposit':
             amount = amount
-        elif data1[1] == 'withdraw':
+        elif data1[1] == 'withdraw' or data1[1] == 'donate':
             amount = -amount
         else:
             raise ValueError('Wrong status.')
@@ -266,7 +289,7 @@ class SQLBank():
         # update
         if data1[1] == 'deposit':
             amount = amount
-        elif data1[1] == 'withdraw':
+        elif data1[1] == 'withdraw' or data1[1] == 'donate':
             amount = -amount
         else:
             raise ValueError('Wrong status.')

@@ -123,6 +123,18 @@ class bankcmd(commands.Cog):
             await self._reply(ctx,premsg,n)
         return
 
+    @commands.command(name='donate',help='$donate 从个人账户向军团账户捐赠/转账，用于与会计号交易或者购买基金')
+    async def donate(self,ctx, n: int, memo = ''):
+        user=ctx.message.author
+        try:
+            self.bot.bank.Donate(n,user.display_name,str(user.id),memo)
+        except ValueError as err:
+            await ctx.send('```'+str(err)+'```')
+        else:
+            premsg = '```'+user.display_name+' has donated {} isk```'
+            await self._reply(ctx,premsg,n)
+        return
+
     @commands.command(name='check',help='$check 查账户余额')
     async def check(self,ctx):
         user=ctx.message.author
@@ -179,7 +191,7 @@ class bankcmd(commands.Cog):
         else:
             if not data:
                 await ctx.send('```No transaction found```')
-            elif data[3] != 'deposit' and data[3] !='withdraw':
+            elif data[3] != 'deposit' and data[3] !='withdraw' and data[3] !='donate':
                 await ctx.send('```Last transaction cannot be retracted.```')
             elif data[6] != 'pending':
                 await ctx.send('```Last transaction has already been auditted.```')
