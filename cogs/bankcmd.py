@@ -134,7 +134,7 @@ class bankcmd(commands.Cog):
             await self._reply(ctx,premsg,n)
         return
 
-    @commands.command(name='donate',help='$donate 从个人账户向军团账户捐赠/转账，用于与会计号交易或者购买基金')
+    @commands.command(name='donate',help='$donate n memo(optional) 从个人账户向军团账户捐赠/转账，用于与会计号交易或者购买基金')
     async def donate(self,ctx, n: int, memo = ''):
         user=ctx.message.author
         try:
@@ -311,7 +311,7 @@ class bankcmd(commands.Cog):
         self._backup_to_gs()
         return
 
-    @commands.command(name='admin-send', help='$admin-send 会计号向成员账号转账，只有管理员可以使用')
+    @commands.command(name='admin-send', help='$admin-send n memo(Optional) 会计号向成员账号转账，只有管理员可以使用')
     @commands.check(check_admin_role)
     async def admin_send(self,ctx: commands.Context, receiver: discord.User, n: int, memo=''):
         operator = ctx.message.author

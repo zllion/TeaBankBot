@@ -187,8 +187,8 @@ class SQLBank():
             self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo=memo + "/Err: Balance is not enough")
             raise ValueError("Balance is not enough")
         if balance < -1000000000:
-            self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo=memo+"/Err: Isk pending please request for auditing")
-            raise ValueError("Isk pending please request for auditing")
+            self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo=memo+"/Err: Transfer failed. Isk pending please request for auditing")
+            raise ValueError("⚠️Transfer failed⚠️. Isk pending please request for auditing")
         # update balance
         self._balance_add(senderacc,-n)
         self._balance_add(receiveracc,n)
