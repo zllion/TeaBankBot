@@ -20,6 +20,8 @@ extensions = (
     "cogs.bankcmd",
     )
 
+intents = discord.Intents.default()
+intents.members = True
 
 class BankBot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -29,6 +31,6 @@ class BankBot(commands.Bot):
             self.load_extension(extension)
         return
 
-TeaBot = BankBot(command_prefix='$',owner_id = 356096513828454411)
+TeaBot = BankBot(command_prefix='$',owner_id = 356096513828454411, intents = intents)
 
 TeaBot.run(TOKEN)
