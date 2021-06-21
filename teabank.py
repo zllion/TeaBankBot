@@ -85,9 +85,9 @@ class SQLBank():
         #eligibility check
         if n < 0:
             self._transaction('deposit',n,'','',receiver,accNo,'denied',memo=memo+'/Err: Cannot Deposit negative isk')
-            raise ValueError("Cannot Deposit negative isk")
+            raise ValueError("⚠️Deposit Failed⚠️: Cannot Deposit negative isk")
         if n > 1000000000000:
-            raise ValueError("That's too large!")
+            raise ValueError("⚠️Deposit Failed⚠️: That's too large!")
         pending = data[4]
         self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending+n,accNo))
         # write record
@@ -106,13 +106,13 @@ class SQLBank():
         #eligibility check
         if n < 0:
             self._transaction('withdraw',n,'','',receiver,accNo,'denied',memo=memo + '/Err: Cannot Withdraw isk from vacuum')
-            raise ValueError("Cannot Withdraw isk from vacuum")
+            raise ValueError("⚠️Withdrawal Failed⚠️: Cannot Withdraw isk from vacuum")
         if n > 1000000000000:
-            raise ValueError("That's too large!")
+            raise ValueError("⚠️Withdrawal Failed⚠️: That's too large!")
         balance, pending = data[3],data[4]
         if n > balance+pending:
             self._transaction('withdraw',n,'','',receiver,accNo,'denied',memo=memo + "/Err: Balance is not enough")
-            raise ValueError("Balance is not enough")
+            raise ValueError("⚠️Withdrawal Failed⚠️: Balance is not enough")
         self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending-n,accNo))
         # write record
         self._transaction('withdraw',n,'','',receiver,accNo,'pending',memo)
@@ -151,13 +151,13 @@ class SQLBank():
         #eligibility check
         if n < 0:
             self._transaction('donate',n,'','',receiver,accNo,'denied',memo=memo + '/Err: Cannot Donate Negative isk')
-            raise ValueError("Cannot Donate Negative isk")
+            raise ValueError("⚠️Transaction Failed⚠️: Cannot Donate Negative isk")
         if n > 1000000000000:
-            raise ValueError("That's too large!")
+            raise ValueError("⚠️Transaction Failed⚠️: That's too large!")
         balance, pending = data[3],data[4]
         if n > balance+pending:
             self._transaction('donate',n,'','',receiver,accNo,'denied',memo=memo + "/Err: Balance is not enough")
-            raise ValueError("Balance is not enough")
+            raise ValueError("⚠️Transaction Failed⚠️: Balance is not enough")
         self.cur.execute("UPDATE Accounts SET Pending = ? WHERE Account = ?",(pending-n,accNo))
         # write record
         self._transaction('donate',n,'','',receiver,accNo,'pending',memo)
@@ -185,10 +185,10 @@ class SQLBank():
         # check validity
         if n > balance+pending:
             self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo=memo + "/Err: Balance is not enough")
-            raise ValueError("Balance is not enough")
+            raise ValueError("⚠️Transfer failed⚠️: Balance is not enough")
         if balance < -1000000000:
             self._transaction('transfer',n,sender,senderacc,receiver,receiveracc,'denied',memo=memo+"/Err: Transfer failed. Isk pending please request for auditing")
-            raise ValueError("⚠️Transfer failed⚠️. Isk pending please request for auditing")
+            raise ValueError("⚠️Transfer failed⚠️: Isk pending please request for auditing")
         # update balance
         self._balance_add(senderacc,-n)
         self._balance_add(receiveracc,n)
