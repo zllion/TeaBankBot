@@ -187,8 +187,8 @@ class bankcmd(commands.Cog):
             'Status': [data[i][6] for i in range(n)],
             'Memo': [data[i][7] for i in range(n)]
             }
-            header = ['Sender','Receiver','Type','Amount','Memo']
-            content = tabulate([header]+[[datadict[h][i] for h in header] for i in range(n)],headers="firstrow",stralign='right')
+            header = ['Type','Amount','Sender','Receiver','Memo']
+            content = tabulate([header]+[[datadict[h][i] for h in header] for i in range(n)],headers="firstrow",stralign='right',numalign = 'right')
             msg = await ctx.send('```'+content+'```')
             await msg.add_reaction('🔄')
             def check(reaction, user):
@@ -206,7 +206,7 @@ class bankcmd(commands.Cog):
                         # embed.set_field_at(1,name = 'Action', value = '\n'.join(fields['Action']))
                         # await msg.edit(embed = embed)
                         datadict['Amount'] = [next(amount[i]) for i in range(n)]
-                        content = tabulate([header]+[[datadict[h][i] for h in header] for i in range(n)],headers="firstrow",stralign='right')
+                        content = tabulate([header]+[[datadict[h][i] for h in header] for i in range(n)],headers="firstrow",stralign='right',numalign = 'right')
                         await msg.edit(content='```'+content+'```')
                         continue
 
