@@ -1,6 +1,7 @@
 import discord
 import asyncio
 import itertools
+from tabulate import tabulate
 from discord.ext import commands
 
 def check_admin_role(ctx):
@@ -165,34 +166,51 @@ class bankcmd(commands.Cog):
             data=self.bot.bank.PullTransactions(user.id,n)
         except ValueError as err:
             await ctx.send('```'+str(err)+'```')
+            # fields = {}
+            # fields['Receiver'] = [p[5] for p in data]
+            # maxl = max([len(str(p[2]))+len(str(p[2]))//3 for p in data])+1
+            # amount = [self._toggle_number(int(p[2])) for p in data]
+            # fields['Action'] = [data[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
+            # fields['Time'] = [p[1] for p in data]
+            # embed = discord.Embed(title = 'Record', description = 'Check recent {} records, 🔄 changes the number representation'.format(n))
+            # for key in fields:
+            #     embed.add_field(name = key, value = '\n'.join(fields[key]))
+            # msg = await ctx.send(embed=embed)
         else:
-            fields = {}
-            fields['Receiver'] = [p[5] for p in data]
-            maxl = max([len(str(p[2]))+len(str(p[2]))//3 for p in data])+1
             amount = [self._toggle_number(int(p[2])) for p in data]
-            fields['Action'] = [data[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
-            fields['Time'] = [p[1] for p in data]
-            embed = discord.Embed(title = 'Record', description = 'Check recent {} records, 🔄 changes the number representation'.format(n))
-            for key in fields:
-                embed.add_field(name = key, value = '\n'.join(fields[key]))
-            msg = await ctx.send(embed=embed)
+            datadict ={'Transaction ID': [data[i][0] for i in range(n)],
+            'Time': [data[i][1][:8] for i in range(n)],
+            'Amount': [next(amount[i]) for i in range(n)],
+            'Type': [data[i][3] for i in range(n)],
+            'Sender': [data[i][4] for i in range(n)],
+            'Receiver': [data[i][5] for i in range(n)],
+            'Status': [data[i][6] for i in range(n)],
+            'Memo': [data[i][7] for i in range(n)]
+            }
+            header = ['Sender','Receiver','Type','Amount','Memo']
+            content = tabulate([header]+[[datadict[h][i] for h in header] for i in range(n)],headers="firstrow",stralign='right')
+            msg = await ctx.send('```'+content+'```')
             await msg.add_reaction('🔄')
             def check(reaction, user):
                 return user == ctx.author and reaction.message == msg
             while True:
                 try:
-                    reaction, user = await self.bot.wait_for('reaction_add', timeout=600.0, check=check)
+                    reaction, user = await self.bot.wait_for('reaction_add', timeout=1800.0, check=check)
                 except asyncio.TimeoutError:
                     break
                 else:
                     if reaction.emoji == '🔄':
                         await reaction.remove(user)
-                        fields['Action'] = [data[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
-                        embed.set_field_at(1,name = 'Action', value = '\n'.join(fields['Action']))
-                        await msg.edit(embed = embed)
+
+                        # fields['Action'] = [data[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
+                        # embed.set_field_at(1,name = 'Action', value = '\n'.join(fields['Action']))
+                        # await msg.edit(embed = embed)
+                        datadict['Amount'] = [next(amount[i]) for i in range(n)]
+                        content = tabulate([header]+[[datadict[h][i] for h in header] for i in range(n)],headers="firstrow",stralign='right')
+                        await msg.edit(content='```'+content+'```')
                         continue
 
-    @commands.command(name='recall', help='$record 取消上一笔存款或取款操作')
+    @commands.command(name='recall', help='$recall 取消上一笔存款或取款操作')
     async def recall(self,ctx):
         user=ctx.message.author
         try:

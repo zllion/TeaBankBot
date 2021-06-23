@@ -210,7 +210,7 @@ class SQLBank():
         #pull recent n transactions
         accNo = str(userid)[-9:]
         self.cur.execute('''
-        SELECT Transactions.TransactionID,Transactions.Time,Transactions.Amount,Transactions.Type,temp1.Name,temp2.Name,Transactions.Status
+        SELECT Transactions.TransactionID,Transactions.Time,Transactions.Amount,Transactions.Type,temp1.Name,temp2.Name,Transactions.Status,Transactions.Memo
         FROM Transactions
         LEFT JOIN Accounts AS temp1 ON Transactions."Sender Account"=temp1.Account
         LEFT JOIN Accounts AS temp2 ON Transactions."Receiver Account"=temp2.Account
