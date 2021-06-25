@@ -37,6 +37,9 @@ TeaBot = BankBot(command_prefix='$',owner_id = 356096513828454411, intents = int
 
 @TeaBot.check
 async def globally_block_channels(ctx):
-    return ctx.channel.id in [854068518172229662]
+    if ctx.channel.id in [854068518172229662]:
+        await ctx.send("$ commands are excluded from test channel")
+        return False
+    return True
 
 TeaBot.run(TOKEN)
