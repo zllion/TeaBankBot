@@ -31,6 +31,12 @@ class BankBot(commands.Bot):
             self.load_extension(extension)
         return
 
+
+
 TeaBot = BankBot(command_prefix='$',owner_id = 356096513828454411, intents = intents)
+
+@TeaBot.check
+async def globally_block_channels(ctx):
+    return ctx.channel.id in [854068518172229662]
 
 TeaBot.run(TOKEN)
