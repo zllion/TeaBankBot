@@ -260,7 +260,7 @@ class bankcmd(commands.Cog):
     @commands.command(name='audit', help='$audit 审计，只有@管理员可以使用')
     @commands.check(check_admin_role)
     async def audit(self,ctx):
-        max_output = 3 # maximum output
+        max_output = 20 # maximum output
         user = ctx.author
         user_name = ctx.author.display_name
         pendings = self.bot.bank.GetPendings()[:max_output]
