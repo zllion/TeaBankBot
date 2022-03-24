@@ -260,9 +260,10 @@ class bankcmd(commands.Cog):
     @commands.command(name='audit', help='$audit 审计，只有@管理员可以使用')
     @commands.check(check_admin_role)
     async def audit(self,ctx):
+        max_output = 3 # maximum output
         user = ctx.author
         user_name = ctx.author.display_name
-        pendings = self.bot.bank.GetPendings()[::-1]
+        pendings = self.bot.bank.GetPendings()[:max_output]
         if pendings == []:
             await ctx.send('```No pending transactions```')
             self._backup_to_gs()
@@ -273,17 +274,18 @@ class bankcmd(commands.Cog):
         amount = [self._toggle_number(int(p[2])) for p in pendings]
         fields['Action'] = [pendings[i][3].ljust(8,'.')+next(amount[i]).rjust(maxl,'.')+' isk' for i in range(len(amount))]
         fields['Time'] = [p[1] for p in pendings]
-        embed = discord.Embed(title = 'Audit process', description = '👍 will approve all. \n✅ will approve next. \n❌ will deny next.\
-        \n⏸️ will skip next. \nMay take some time to interact with the database.')
+        embed = discord.Embed(title = 'Audit process', description = f'👍 will approve all. \n✅ will approve next. \n❌ will deny next.\
+        \n⏸️ will skip next. \nMay take some time to interact with the database.\nMaximum output is {max_output}')
         for key in fields:
             value = '\n'.join(fields[key])
             embed.add_field(name = key, value = value)
         msg = await ctx.send(embed=embed)
-        await msg.add_reaction('👍')
-        await msg.add_reaction('✅') # check mark
-        await msg.add_reaction('❌') # cross
-        await msg.add_reaction('⏸️') # stop
-        await msg.add_reaction('🔄')
+        # await msg.add_reaction('👍')
+        # await msg.add_reaction('✅')
+        # await msg.add_reaction('❌')
+        # await msg.add_reaction('⏸️')
+        # await msg.add_reaction('🔄')
+        await asyncio.gather(msg.add_reaction('👍'),msg.add_reaction('✅'),msg.add_reaction('❌'),msg.add_reaction('⏸️'),msg.add_reaction('🔄'))
         l = len(pendings)
         i = 0
         def check(reaction, user):
