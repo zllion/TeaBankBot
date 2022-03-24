@@ -17,9 +17,9 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN_TEST')
 
 extensions = (
-    "cogs.bankcmd",
+    #"cogs.bankcmd",
     "cogs.test",
-    "cogs.bet"
+    #"cogs.bet"
     )
 
 intents = discord.Intents.default()

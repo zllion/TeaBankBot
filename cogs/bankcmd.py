@@ -369,3 +369,4 @@ class bankcmd(commands.Cog):
 
 def setup(bot):
     bot.add_cog(bankcmd(bot))
+    print('bankcmd is loaded')
