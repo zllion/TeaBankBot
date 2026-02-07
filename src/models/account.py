@@ -10,11 +10,11 @@ class Account:
     id: int
     account_no: str
     name: str
-    amount: float
-    pending: float
-    share: float
+    amount: int
+    pending: int
+    share: int
 
     @property
-    def total_balance(self) -> float:
+    def total_balance(self) -> int:
         """Calculate total balance including pending amounts."""
         return self.amount + self.pending

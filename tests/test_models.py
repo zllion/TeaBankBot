@@ -23,18 +23,18 @@ def test_account_creation():
         id=1,
         account_no="12345",
         name="Alice",
-        amount=100.0,
-        pending=50.0,
-        share=0.0,
+        amount=100,
+        pending=50,
+        share=0,
     )
 
     assert account.id == 1
     assert account.account_no == "12345"
     assert account.name == "Alice"
-    assert account.amount == 100.0
-    assert account.pending == 50.0
-    assert account.share == 0.0
-    assert account.total_balance == 150.0
+    assert account.amount == 100
+    assert account.pending == 50
+    assert account.share == 0
+    assert account.total_balance == 150
 
 
 def test_transaction_create_pending():
