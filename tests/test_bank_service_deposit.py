@@ -180,3 +180,31 @@ def test_deposit_increases_pending_not_amount(bank_service, account_repo, transa
     account = account_repo.find_by_account_no("234567890")
     assert account.pending == deposit_amount
     assert account.amount == 500  # Unchanged
+
+
+def test_approve_deposit_updates_balances(bank_service, account_repo, transaction_repo):
+    """Approve deposit should update pending and amount."""
+    # Create an account first
+    user_id = "1234567890"
+    bank_service.create_account(user_id, "Alice")
+    account_no = bank_service._get_account_no(user_id)
+
+    # Set initial amount
+    account_repo.update_amount(account_no, 500)
+
+    # Deposit
+    deposit_amount = 1000
+    transaction = bank_service.deposit(user_id, deposit_amount, "Test")
+
+    # Verify pending increased, amount unchanged before approval
+    account = account_repo.find_by_account_no(account_no)
+    assert account.pending == deposit_amount
+    assert account.amount == 500  # Unchanged
+
+    # Approve the transaction
+    bank_service.approve_transaction(transaction.id, "admin")
+
+    # Verify pending cleared (back to 0), amount increased
+    account = account_repo.find_by_account_no(account_no)
+    assert account.pending == 0  # Cleared
+    assert account.amount == 1500  # Increased by deposit amount

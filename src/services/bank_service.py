@@ -4,7 +4,10 @@ from src.models.account import Account
 from src.models.exceptions import (
     AccountAlreadyExistsError,
     AccountNotFoundError,
+    InsufficientBalanceError,
     InvalidAmountError,
+    InvalidTransactionStatusError,
+    TransactionNotFoundError,
 )
 from src.models.transaction import Transaction
 from src.repositories.account_repo import AccountRepository
@@ -190,3 +193,134 @@ class BankService:
 
         # Fetch and return the transaction with ID
         return self._transaction_repo.find_by_id(txn_id)
+
+    def withdraw(self, user_id: str, amount: int, memo: str) -> Transaction:
+        """
+        Withdraw funds from an account.
+
+        The withdrawal creates a pending transaction that requires audit approval.
+        The pending balance is decreased immediately, but the amount balance
+        is only updated after audit approval.
+
+        Args:
+            user_id: The user ID of the account to withdraw from
+            amount: The amount to withdraw (must be positive and <= max_amount)
+            memo: Transaction memo/note
+
+        Returns:
+            The created Transaction
+
+        Raises:
+            AccountNotFoundError: If the account doesn't exist
+            InvalidAmountError: If the amount is invalid (negative, zero, or exceeds max)
+            InsufficientBalanceError: If the account has insufficient balance
+        """
+        # Get account number
+        account_no = self._get_account_no(user_id)
+
+        # Validate account exists
+        account = self._account_repo.find_by_account_no(account_no)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_no} not found")
+
+        # Validate amount
+        if amount < 0:
+            raise InvalidAmountError(
+                f"Cannot withdraw negative amount: {amount}. Amount must be positive."
+            )
+        if amount == 0:
+            raise InvalidAmountError("Withdrawal amount must be greater than zero.")
+        if amount > self._max_amount:
+            raise InvalidAmountError(
+                f"Amount {amount} exceeds maximum allowed withdrawal of {self._max_amount}"
+            )
+
+        # Check sufficient balance (amount - pending >= withdrawal amount)
+        # pending is negative for withdrawals, so we subtract it
+        available_balance = account.amount - account.pending
+        if amount > available_balance:
+            raise InsufficientBalanceError(
+                f"Insufficient balance: {available_balance} available, {amount} requested"
+            )
+
+        # Create pending transaction
+        transaction = Transaction.create_pending(
+            type="withdraw",
+            sender=account_no,
+            receiver=account_no,
+            amount=amount,
+            memo=memo,
+        )
+
+        # Save transaction
+        txn_id = self._transaction_repo.create(transaction)
+
+        # Update pending balance (decrease for withdrawal)
+        self._account_repo.update_pending(account_no, -amount)
+
+        # Fetch and return the transaction with ID
+        return self._transaction_repo.find_by_id(txn_id)
+
+    def approve_transaction(self, txn_id: int, operator: str) -> None:
+        """
+        Approve a pending transaction.
+
+        For deposit/request transactions: pending -= amount, amount += amount
+        For withdraw/donate transactions: pending += amount, amount -= amount
+
+        Args:
+            txn_id: The transaction ID to approve
+            operator: The operator approving the transaction
+
+        Raises:
+            TransactionNotFoundError: If the transaction doesn't exist
+            InvalidTransactionStatusError: If the transaction is not in 'pending' status
+        """
+        # Find transaction
+        transaction = self._transaction_repo.find_by_id(txn_id)
+        if transaction is None:
+            raise TransactionNotFoundError(f"Transaction {txn_id} not found")
+
+        # Check status is pending
+        if transaction.status != "pending":
+            raise InvalidTransactionStatusError(
+                f"Transaction {txn_id} is not in pending status"
+            )
+
+        # Get account number
+        account_no = transaction.receiver_account
+        amount = transaction.amount
+
+        # Update balances based on transaction type
+        # For deposit/request: pending -= amount, amount += amount
+        # For withdraw/donate: pending += amount, amount -= amount
+        if transaction.type in ("deposit", "request"):
+            # Decrease pending (was increased), increase amount
+            self._account_repo.update_pending_and_amount(
+                account_no, pending_delta=-amount, amount_delta=amount
+            )
+        elif transaction.type in ("withdraw", "donate"):
+            # Increase pending (was decreased), decrease amount
+            self._account_repo.update_pending_and_amount(
+                account_no, pending_delta=amount, amount_delta=-amount
+            )
+        else:
+            # For transfer and other types, we might need different logic
+            # For now, assume sender/receiver both need updates
+            if transaction.sender_account != transaction.receiver_account:
+                # Transfer: update both accounts
+                # For sender: pending += amount, amount -= amount
+                self._account_repo.update_pending_and_amount(
+                    transaction.sender_account,
+                    pending_delta=amount,
+                    amount_delta=-amount,
+                )
+                # For receiver: pending -= amount, amount += amount
+                self._account_repo.update_pending_and_amount(
+                    transaction.receiver_account,
+                    pending_delta=-amount,
+                    amount_delta=amount,
+                )
+
+        # Update transaction status to done
+        self._transaction_repo.update_status(txn_id, "done", operator)
