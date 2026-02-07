@@ -412,3 +412,215 @@ class BankService:
 
         # Update transaction status to done
         self._transaction_repo.update_status(txn_id, "done", operator)
+
+    def request(self, user_id: str, amount: int, memo: str) -> Transaction:
+        """
+        Request funds from the bank.
+
+        Similar to deposit but max_request_amount is 100B (not 1T).
+        The request creates a pending transaction that requires audit approval.
+        The pending balance is increased immediately, but the amount balance
+        is only updated after audit approval.
+
+        Args:
+            user_id: The user ID of the account requesting funds
+            amount: The amount to request (must be positive and <= 100B)
+            memo: Transaction memo/note
+
+        Returns:
+            The created Transaction
+
+        Raises:
+            AccountNotFoundError: If the account doesn't exist
+            InvalidAmountError: If the amount is invalid (negative, zero, or exceeds 100B)
+        """
+        # Get account number
+        account_no = self._get_account_no(user_id)
+
+        # Validate account exists
+        account = self._account_repo.find_by_account_no(account_no)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_no} not found")
+
+        # Define max request amount as 100B
+        max_request_amount = 100_000_000_000
+
+        # Validate amount
+        if amount < 0:
+            raise InvalidAmountError(
+                f"Cannot request negative amount: {amount}. Amount must be positive."
+            )
+        if amount == 0:
+            raise InvalidAmountError("Request amount must be greater than zero.")
+        if amount > max_request_amount:
+            raise InvalidAmountError(
+                f"Amount {amount} exceeds maximum allowed request of {max_request_amount}"
+            )
+
+        # Create pending transaction
+        transaction = Transaction.create_pending(
+            type="request",
+            sender=account_no,
+            receiver=account_no,
+            amount=amount,
+            memo=memo,
+        )
+
+        # Save transaction
+        txn_id = self._transaction_repo.create(transaction)
+
+        # Update pending balance
+        self._account_repo.update_pending(account_no, amount)
+
+        # Fetch and return the transaction with ID
+        return self._transaction_repo.find_by_id(txn_id)
+
+    def donate(self, user_id: str, amount: int, memo: str) -> Transaction:
+        """
+        Donate funds to the bank.
+
+        Like withdraw but decreases pending.
+        The donation creates a pending transaction that requires audit approval.
+        The pending balance is decreased immediately, but the amount balance
+        is only updated after audit approval.
+
+        Args:
+            user_id: The user ID of the account donating funds
+            amount: The amount to donate (must be positive and <= max_amount)
+            memo: Transaction memo/note
+
+        Returns:
+            The created Transaction
+
+        Raises:
+            AccountNotFoundError: If the account doesn't exist
+            InvalidAmountError: If the amount is invalid (negative, zero, or exceeds max)
+            InsufficientBalanceError: If the account has insufficient balance
+        """
+        # Get account number
+        account_no = self._get_account_no(user_id)
+
+        # Validate account exists
+        account = self._account_repo.find_by_account_no(account_no)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_no} not found")
+
+        # Validate amount
+        if amount < 0:
+            raise InvalidAmountError(
+                f"Cannot donate negative amount: {amount}. Amount must be positive."
+            )
+        if amount == 0:
+            raise InvalidAmountError("Donation amount must be greater than zero.")
+        if amount > self._max_amount:
+            raise InvalidAmountError(
+                f"Amount {amount} exceeds maximum allowed donation of {self._max_amount}"
+            )
+
+        # Check sufficient balance (amount - pending >= donation amount)
+        # pending is negative for donations, so we subtract it
+        available_balance = account.amount - account.pending
+        if amount > available_balance:
+            raise InsufficientBalanceError(
+                f"Insufficient balance: {available_balance} available, {amount} requested"
+            )
+
+        # Create pending transaction
+        transaction = Transaction.create_pending(
+            type="donate",
+            sender=account_no,
+            receiver=account_no,
+            amount=amount,
+            memo=memo,
+        )
+
+        # Save transaction
+        txn_id = self._transaction_repo.create(transaction)
+
+        # Update pending balance (decrease for donation)
+        self._account_repo.update_pending(account_no, -amount)
+
+        # Fetch and return the transaction with ID
+        return self._transaction_repo.find_by_id(txn_id)
+
+    def deny_transaction(self, txn_id: int, operator: str) -> None:
+        """
+        Deny a pending transaction.
+
+        Reverse pending based on transaction type:
+        - For deposit/request: pending -= amount (was increased)
+        - For withdraw/donate: pending += amount (was decreased)
+
+        Args:
+            txn_id: The transaction ID to deny
+            operator: The operator denying the transaction
+
+        Raises:
+            TransactionNotFoundError: If the transaction doesn't exist
+            InvalidTransactionStatusError: If the transaction is not in 'pending' status
+        """
+        # Find transaction
+        transaction = self._transaction_repo.find_by_id(txn_id)
+        if transaction is None:
+            raise TransactionNotFoundError(f"Transaction {txn_id} not found")
+
+        # Check status is pending
+        if transaction.status != "pending":
+            raise InvalidTransactionStatusError(
+                f"Transaction {txn_id} is not in pending status"
+            )
+
+        # Get account number and amount
+        account_no = transaction.receiver_account
+        amount = transaction.amount
+
+        # Revert pending balance based on transaction type
+        # For deposit/request: pending was increased, so decrease it
+        # For withdraw/donate: pending was decreased, so increase it
+        if transaction.type in ("deposit", "request"):
+            # Decrease pending (was increased)
+            self._account_repo.update_pending(account_no, -amount)
+        elif transaction.type in ("withdraw", "donate"):
+            # Increase pending (was decreased)
+            self._account_repo.update_pending(account_no, amount)
+        else:
+            # For transfer and other types, handle both accounts
+            if transaction.sender_account != transaction.receiver_account:
+                # Transfer: revert both accounts
+                # For sender: pending was increased (since they're sending), so decrease
+                self._account_repo.update_pending(
+                    transaction.sender_account, pending_delta=-amount
+                )
+                # For receiver: pending was decreased (since they're receiving), so increase
+                self._account_repo.update_pending(
+                    transaction.receiver_account, pending_delta=amount
+                )
+
+        # Update transaction status to denied
+        self._transaction_repo.update_status(txn_id, "denied", operator)
+
+    def pull_transactions(self, user_id: str, n: int) -> list[Transaction]:
+        """
+        Get recent N transactions for a user.
+
+        Args:
+            user_id: The user ID
+            n: Number of recent transactions to retrieve
+
+        Returns:
+            List of recent transactions for the user (max N)
+        """
+        account_no = self._get_account_no(user_id)
+        return self._transaction_repo.find_by_account(account_no, n)
+
+    def get_pending_transactions(self, limit: int) -> list[Transaction]:
+        """
+        Get all pending transactions.
+
+        Args:
+            limit: Maximum number of pending transactions to return
+
+        Returns:
+            List of pending transactions
+        """
+        return self._transaction_repo.find_pending_transactions(limit)
