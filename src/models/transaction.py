@@ -14,7 +14,7 @@ class Transaction:
     sender_account: str
     receiver_account: str
     status: str
-    amount: float
+    amount: int
     operator: str | None
     memo: str
 
@@ -24,7 +24,7 @@ class Transaction:
         type: str,
         sender: str,
         receiver: str,
-        amount: float,
+        amount: int,
         memo: str,
     ) -> "Transaction":
         """

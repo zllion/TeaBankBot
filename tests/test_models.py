@@ -43,7 +43,7 @@ def test_transaction_create_pending():
         type="transfer",
         sender="12345",
         receiver="67890",
-        amount=50.0,
+        amount=50,
         memo="Test transfer",
     )
 
@@ -51,7 +51,7 @@ def test_transaction_create_pending():
     assert transaction.type == "transfer"
     assert transaction.sender_account == "12345"
     assert transaction.receiver_account == "67890"
-    assert transaction.amount == 50.0
+    assert transaction.amount == 50
     assert transaction.status == "pending"
     assert transaction.operator is None
     assert transaction.memo == "Test transfer"
