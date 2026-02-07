@@ -27,7 +27,7 @@ class Settings:
 
     # Business Rules
     max_deposit_amount: int = 1_000_000_000_000  # 1T
-    max_request_amount: int = 100_000_000  # 100M
+    max_request_amount: int = 100_000_000_000  # 100B
     max_transfer_amount: int = 1_000_000_000_000  # 1T
     min_balance: int = -1_000_000_000  # -1B
 

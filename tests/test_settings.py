@@ -36,7 +36,7 @@ def test_settings_defaults():
 
     # Business rules defaults
     assert settings.max_deposit_amount == 1_000_000_000_000  # 1T
-    assert settings.max_request_amount == 100_000_000  # 100M
+    assert settings.max_request_amount == 100_000_000_000  # 100B
     assert settings.max_transfer_amount == 1_000_000_000_000  # 1T
     assert settings.min_balance == -1_000_000_000  # -1B
 
