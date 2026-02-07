@@ -1,7 +1,12 @@
 """Bank service for business logic layer."""
 
 from src.models.account import Account
-from src.models.exceptions import AccountAlreadyExistsError, AccountNotFoundError
+from src.models.exceptions import (
+    AccountAlreadyExistsError,
+    AccountNotFoundError,
+    InvalidAmountError,
+)
+from src.models.transaction import Transaction
 from src.repositories.account_repo import AccountRepository
 from src.repositories.transaction_repo import TransactionRepository
 
@@ -127,3 +132,61 @@ class BankService:
             raise AccountNotFoundError(f"Account {account_no} not found")
 
         return account.amount, account.pending
+
+    def deposit(self, user_id: str, amount: int, memo: str) -> Transaction:
+        """
+        Deposit funds into an account.
+
+        The deposit creates a pending transaction that requires audit approval.
+        The pending balance is increased immediately, but the amount balance
+        is only updated after audit approval.
+
+        Args:
+            user_id: The user ID of the account to deposit to
+            amount: The amount to deposit (must be positive and <= max_amount)
+            memo: Transaction memo/note
+
+        Returns:
+            The created Transaction
+
+        Raises:
+            AccountNotFoundError: If the account doesn't exist
+            InvalidAmountError: If the amount is invalid (negative, zero, or exceeds max)
+        """
+        # Get account number
+        account_no = self._get_account_no(user_id)
+
+        # Validate account exists
+        account = self._account_repo.find_by_account_no(account_no)
+        if account is None:
+            raise AccountNotFoundError(f"Account {account_no} not found")
+
+        # Validate amount
+        if amount < 0:
+            raise InvalidAmountError(
+                f"Cannot deposit negative amount: {amount}. Amount must be positive."
+            )
+        if amount == 0:
+            raise InvalidAmountError("Deposit amount must be greater than zero.")
+        if amount > self._max_amount:
+            raise InvalidAmountError(
+                f"Amount {amount} exceeds maximum allowed deposit of {self._max_amount}"
+            )
+
+        # Create pending transaction
+        transaction = Transaction.create_pending(
+            type="deposit",
+            sender=account_no,
+            receiver=account_no,
+            amount=amount,
+            memo=memo,
+        )
+
+        # Save transaction
+        txn_id = self._transaction_repo.create(transaction)
+
+        # Update pending balance
+        self._account_repo.update_pending(account_no, amount)
+
+        # Fetch and return the transaction with ID
+        return self._transaction_repo.find_by_id(txn_id)
